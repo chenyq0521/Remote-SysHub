@@ -314,7 +314,6 @@ void RegistryDialog::on_valueTableView_customContextMenuRequested(const QPoint &
     QAction *Delete = new QAction("删除");
     QAction *Rename = new QAction("重命名");
     QAction *New = new QAction("新建");
-    QAction *item = new QAction("项");
     QAction *StringValue = new QAction("字符串值");
     QAction *BinaryValue = new QAction("二进制值");
     QAction *DwordValue = new QAction("DWORD值");
@@ -324,8 +323,6 @@ void RegistryDialog::on_valueTableView_customContextMenuRequested(const QPoint &
 
     QMenu *SubNewMenu = new QMenu(this);
 
-    SubNewMenu->addAction(item);
-    SubNewMenu->addSeparator();
     SubNewMenu->addAction(StringValue);
     SubNewMenu->addAction(BinaryValue);
     SubNewMenu->addAction(DwordValue);
@@ -362,7 +359,6 @@ void RegistryDialog::on_valueTableView_customContextMenuRequested(const QPoint &
     connect(QwordValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_QWORD);});
     connect(MultiStringValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_MULTI_SZ);});
     connect(ExpandedStringValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_EXPAND_SZ);});
-
     valueMenu.exec(ui->valueTableView->viewport()->mapToGlobal(pos));
 }
 
@@ -682,7 +678,7 @@ void RegistryDialog::on_pathTreeView_customContextMenuRequested(const QPoint &po
     QAction *Rename = new QAction("重命名");
     QAction *New = new QAction("新建");
     QAction *item = new QAction("项");
-    QAction *StringValue = new QAction("字符串值");
+                                                                               QAction *StringValue = new QAction("字符串值");
     QAction *BinaryValue = new QAction("二进制值");
     QAction *DwordValue = new QAction("DWORD值");
     QAction *QwordValue = new QAction("QWORD值");
@@ -726,6 +722,12 @@ void RegistryDialog::on_pathTreeView_customContextMenuRequested(const QPoint &po
     connect(item,&QAction::triggered,this,[=](){CreateNewKey(ui->pathTreeView->currentIndex());});
     connect(Rename,&QAction::triggered,this,[=](){RenameKey(ui->pathTreeView->currentIndex());});
     connect(Delete,&QAction::triggered,this,[=](){DeleteKey(ui->pathTreeView->currentIndex());});
+    connect(StringValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_SZ);});
+    connect(BinaryValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_BINARY);});
+    connect(DwordValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_DWORD);});
+    connect(QwordValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_QWORD);});
+    connect(MultiStringValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_MULTI_SZ);});
+    connect(ExpandedStringValue, &QAction::triggered, this, [=](){CreateNewValue(MREG_EXPAND_SZ);});
     pathMenu.exec(ui->pathTreeView->viewport()->mapToGlobal(pos));
 }
 
