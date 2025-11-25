@@ -4,7 +4,10 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 
-LIBS += -lws2_32
+INCLUDEPATH += $$PWD
+
+LIBS += -L$$PWD
+LIBS += -lws2_32 -ldetours
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -33,7 +36,8 @@ HEADERS += \
     processmanager.h \
     registrymanager.h \
     tcpclient.h \
-    windowmanager.h
+    windowmanager.h \
+    detours.h
 
 FORMS += \
     mainwindow.ui

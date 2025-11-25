@@ -1,3 +1,4 @@
+
 #include "mainwindow.h"
 #include "kernelmanager.h"
 #include "tcpclient.h"
@@ -5,6 +6,12 @@
 #include "loginhelper.h"
 #include <QApplication>
 #include <QObject>
+#include <windows.h>
+#include <winternl.h>     // 如果需要 NT API
+#include <tlhelp32.h>
+#include <psapi.h>
+#include "detours.h"
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
