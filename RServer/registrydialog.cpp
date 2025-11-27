@@ -581,7 +581,22 @@ void RegistryDialog::RenameKey(const QModelIndex &index)
         }
         if(oldName == newName) return;
         QStandardItem *parent = changedItem->parent();
-        if (!parent) return;
+        if (!parent)
+        {
+            item->setText(oldName);
+            return;
+        }
+
+        for (int i = 0; i < parent->rowCount(); i++)
+        {
+            QStandardItem *existingname = parent->child(i);
+            if (existingname && existingname != item && existingname->text() == newName)
+            {
+                QMessageBox::warning(this, "重命名时产生错误",  "指定的项名已经存在，请重试一次。");
+                item->setText(oldName);
+                return;
+            }
+        }
 
         item->setText(oldName);
 
@@ -678,7 +693,7 @@ void RegistryDialog::on_pathTreeView_customContextMenuRequested(const QPoint &po
     QAction *Rename = new QAction("重命名");
     QAction *New = new QAction("新建");
     QAction *item = new QAction("项");
-                                                                               QAction *StringValue = new QAction("字符串值");
+    QAction *StringValue = new QAction("字符串值");
     QAction *BinaryValue = new QAction("二进制值");
     QAction *DwordValue = new QAction("DWORD值");
     QAction *QwordValue = new QAction("QWORD值");
