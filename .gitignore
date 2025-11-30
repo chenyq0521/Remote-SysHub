@@ -1,0 +1,5 @@
+# QTCreator
+**/build/
+**/.qtcreator/**
+*.pro.user
+*.pro.user.*
