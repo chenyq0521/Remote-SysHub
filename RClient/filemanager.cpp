@@ -33,29 +33,14 @@ FileManager::FileManager(TcpClient *TClient, QObject *parent)
     , m_watcher(nullptr)
 {
     qDebug() << "[FileManager] Created";
-    // 关键：连接成功后立即发送 FILE_REPLY
+    // 连接成功后立即发送 FILE_REPLY
     connect(m_client, &TcpClient::connected, this, [=]() {
         qDebug() << "[FileManager] Connected to server, sending FILE_REPLY";
-
-        // 创建回复数据包
-        PACKET reply;
-        reply.isToken = FILE_REPLY;  // 确保这个值正确
-
-        // 可以发送一些初始信息，或者空数据
-        QByteArray data;
-        QDataStream stream(&data, QIODevice::WriteOnly);
-        stream << QString("FileManager ready");  // 可选：发送一些状态信息
-
-        reply.payload = data;
-
         // 发送回复
-        m_client->SendData(reply);
+        m_client->SendReply(FILE_REPLY);
         qDebug() << "[FileManager] FILE_REPLY sent with token:" << FILE_REPLY;
     });
-    // 启用备份权限
-    EnableSeDebugPrivilege(GetCurrentProcess(), TRUE, SE_BACKUP_NAME);
 }
-
 FileManager::~FileManager()
 {
     cancelSearch(); // 取消正在进行的搜索
@@ -69,6 +54,9 @@ void FileManager::HandlePacket(const PACKET& packet)
     qDebug() << "[FileManager] Handling packet, token:" << packet.isToken;
 
     switch (packet.isToken) {
+    case FILE_REQUIRE:
+        handleDiskRequest(packet.payload);
+        break;
     case FILE_LIST_REQUEST:
         handleFileListRequest(packet.payload);
         break;
@@ -88,6 +76,44 @@ void FileManager::HandlePacket(const PACKET& packet)
     }
 }
 
+void FileManager::handleDiskRequest(const QByteArray &payload)
+{
+    qDebug() << "[FileManager] Handling disk request";
+
+    // 获取Windows盘符列表
+    QList<FileInfo> drives;
+    QFileInfoList driveList = QDir::drives();
+
+    for (const QFileInfo &drive : driveList) {
+        FileInfo info;
+        info.name = drive.absoluteFilePath();
+        // 移除末尾的斜杠，如 "C:/" -> "C:"
+        if (info.name.endsWith('/') || info.name.endsWith('\\')) {
+            info.name = info.name.left(info.name.length() - 1);
+        }
+        info.type = "驱动器";
+        info.isDirectory = true;
+
+        // 获取驱动器信息
+        ULARGE_INTEGER freeBytes, totalBytes;
+        if (GetDiskFreeSpaceExW(drive.absoluteFilePath().toStdWString().c_str(),
+                                &freeBytes, &totalBytes, NULL)) {
+            info.size = totalBytes.QuadPart;
+            info.diskSize = totalBytes.QuadPart - freeBytes.QuadPart;
+        }
+
+        drives.append(info);
+    }
+
+    qDebug() << "[FileManager] Available drives:" << drives.size();
+
+    // 发送驱动器列表回复
+    QByteArray replyData;
+    QDataStream replyStream(&replyData, QIODevice::WriteOnly);
+    replyStream << drives;  // 只发送驱动器列表
+
+    sendPacket(FILE_REPLY, replyData);  // token 41
+}
 void FileManager::handleFileListRequest(const QByteArray &payload)
 {
     QDataStream stream(payload);
@@ -96,30 +122,10 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
 
     qDebug() << "[FileManager] File list request for path:" << path;
 
-    // 规范化路径
-    if (path.isEmpty() || path == "MyComputer") {
-        // 返回驱动器列表
-        QList<FileInfo> drives;
-        QFileInfoList driveList = QDir::drives();
-
-        for (const QFileInfo &drive : driveList) {
-            FileInfo info;
-            info.name = drive.absoluteFilePath();
-            info.type = "驱动器";
-            info.isDirectory = true;
-
-            // 获取驱动器信息
-            ULARGE_INTEGER freeBytes, totalBytes;
-            if (GetDiskFreeSpaceExW(drive.absoluteFilePath().toStdWString().c_str(),
-                                    &freeBytes, &totalBytes, NULL)) {
-                info.size = totalBytes.QuadPart;
-                info.diskSize = totalBytes.QuadPart - freeBytes.QuadPart;
-            }
-
-            drives.append(info);
-        }
-
-        sendFileListReply("MyComputer", drives);
+    // 检查是否是特殊路径
+    if (path == "MyComputer" || path.isEmpty()) {
+        // 不应该在这里处理，应该由handleDiskRequest处理
+        sendErrorReply(FILE_LIST_REPLY, "请使用FILE_REQUIRE请求驱动器列表");
         return;
     }
 
@@ -134,9 +140,14 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
 
     // 获取目录内容
     QList<FileInfo> fileList = getDirectoryContents(path);
-    sendFileListReply(path, fileList);
-}
 
+    // 发送文件列表回复
+    QByteArray replyData;
+    QDataStream replyStream(&replyData, QIODevice::WriteOnly);
+    replyStream << path << fileList;
+
+    sendPacket(FILE_LIST_REPLY, replyData);  // token 39
+}
 void FileManager::handleFileSearchRequest(const QByteArray &payload)
 {
     // 取消之前的搜索

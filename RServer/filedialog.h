@@ -37,8 +37,11 @@ private slots:
     void on_pathLineEdit_returnPressed();
     void on_backButton_clicked();
     void on_newFolderButton_clicked();
+    void on_diskCombo_currentIndexChanged(int index);
 
 private:
+    void RequestDiskInfo();
+    void ParseDiskInfo(const QByteArray &data);
     void ParseFileList(const QByteArray &data);
     void UpdateCurrentPath(const QString &path);
     void SendFileRequest(const QString &path, unsigned char requestType);

@@ -203,7 +203,7 @@ void ServerDlg::HandlePacket(CONTEXT_OBJECT *ctx)
             HandleReply<RegistryDialog,REGISTRY_REQUIRE,REGISTRY_DIALOG>(ctx);
             break;
         case FILE_REPLY:
-            qDebug()<<"registry reply";
+            qDebug()<<"file reply";
             HandleReply<FileDialog,FILE_REQUIRE,FILE_DIALOG>(ctx);
             break;
         default:

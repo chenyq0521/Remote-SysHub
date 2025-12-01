@@ -97,6 +97,7 @@ private:
     void handleFileExecuteRequest(const QByteArray &payload);
     void handleNewFolderRequest(const QByteArray &payload);
     void handleRenameRequest(const QByteArray &payload);
+    void handleDiskRequest(const QByteArray &payload);
 
     // 工具函数
     QList<FileInfo> getDirectoryContents(const QString &path);

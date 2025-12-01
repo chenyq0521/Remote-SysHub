@@ -55,9 +55,28 @@ FileDialog::FileDialog(TcpWorker *worker, CONTEXT_OBJECT *ctx, QWidget *parent)
             this, &FileDialog::on_treeWidget_itemDoubleClicked);
     connect(ui->treeWidget, &QTreeWidget::currentItemChanged,
             this, &FileDialog::on_treeWidget_currentItemChanged);
+    connect(ui->diskCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &FileDialog::on_diskCombo_currentIndexChanged);
+    ui->diskCombo->addItem("正在获取盘符...");
+    ui->diskCombo->setEnabled(false);
+    RequestDiskInfo();
+    // 发送文件管理请求
+    // SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
+}
+void FileDialog::RequestDiskInfo()
+{
+    if (!m_worker || !m_context) return;
 
-    // 请求根目录文件列表
-    SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
+    // 发送FILE_REQUIRE请求盘符
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+    stream << (unsigned char)FILE_REQUIRE;
+
+    m_context->payload = data;
+    m_context->isToken = FILE_REQUIRE;
+    QMetaObject::invokeMethod(m_worker, "SendData", Qt::QueuedConnection);
+
+    ui->path->setText("正在获取盘符信息...");
 }
 
 FileDialog::~FileDialog()
@@ -69,6 +88,9 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
 {
     QDataStream stream(payload);
     switch (isToken) {
+    case FILE_REPLY:
+        ParseDiskInfo(payload);
+        break;
     case FILE_LIST_REPLY:
         ParseFileList(payload);
         break;
@@ -102,6 +124,65 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
     }
 }
 
+void FileDialog::ParseDiskInfo(const QByteArray &data)
+{
+    QDataStream stream(data);
+    stream.setVersion(QDataStream::Qt_5_15);
+
+    QStringList driveList;
+    stream >> driveList;
+
+    qDebug() << "[FileDialog] Received drives:" << driveList;
+
+    // 清空并更新盘符组合框
+    ui->diskCombo->clear();
+    ui->diskCombo->setEnabled(true);
+
+    if (driveList.isEmpty()) {
+        ui->diskCombo->addItem("未找到盘符");
+        ui->path->setText("无可用盘符");
+        return;
+    }
+
+    // 添加盘符到组合框
+    for (const QString &drive : driveList) {
+        ui->diskCombo->addItem(drive);
+    }
+
+    // 如果有盘符，自动选择第一个并请求其文件列表
+    if (!driveList.isEmpty()) {
+        QString firstDrive = driveList.first();
+        // 确保盘符格式正确，添加反斜杠
+        if (!firstDrive.endsWith('\\') && !firstDrive.endsWith('/')) {
+            firstDrive += '\\';
+        }
+        m_currentPath = firstDrive;
+        SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
+    }
+
+    // 更新状态显示
+    ui->path->setText(QString("已连接，共 %1 个盘").arg(driveList.size()));
+}
+void FileDialog::on_diskCombo_currentIndexChanged(int index)
+{
+    if (index < 0 || ui->diskCombo->count() == 0) return;
+
+    QString drive = ui->diskCombo->itemText(index);
+    if (drive.isEmpty() || drive == "未找到盘符" || drive == "正在获取盘符...") {
+        return;
+    }
+
+    // 确保盘符格式正确
+    if (!drive.endsWith('\\') && !drive.endsWith('/')) {
+        drive += '\\';
+    }
+
+    m_currentPath = drive;
+    ui->path->setText(m_currentPath);
+
+    // 请求该盘符的文件列表
+    SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
+}
 void FileDialog::ParseFileList(const QByteArray &data)
 {
     QDataStream stream(data);
