@@ -6,7 +6,7 @@
 #include <QSortFilterProxyModel>
 #include <QRegularExpression>
 #include "common.h"
-#include "serverdlg.h"
+#include "qstandarditemmodel.h"
 #include "tcpworker.h"
 
 namespace Ui {

@@ -37,6 +37,7 @@ private slots:
     void on_CmdButton_clicked();
     void on_ProcessButton_clicked();
     void on_WindowButton_clicked();
+    void on_FileButton_clicked();
     //数据处理
     void HandlePacket(CONTEXT_OBJECT *ctx);
 

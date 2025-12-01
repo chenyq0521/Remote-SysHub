@@ -16,6 +16,7 @@ LIBS += -lws2_32 -ldetours
 SOURCES += \
     absmanager.cpp \
     cmdmanager.cpp \
+    filemanager.cpp \
     kernelmanager.cpp \
     loginhelper.cpp \
     main.cpp \
@@ -29,6 +30,7 @@ HEADERS += \
     absmanager.h \
     cmdmanager.h \
     common.h \
+    filemanager.h \
     kernelmanager.h \
     loginhelper.h \
     mainwindow.h \

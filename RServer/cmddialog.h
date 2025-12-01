@@ -8,7 +8,6 @@
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include "common.h"
-#include "serverdlg.h"
 #include "tcpworker.h"
 
 namespace Ui {

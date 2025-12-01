@@ -4,6 +4,7 @@
 #include "windowdialog.h"
 #include "processdialog.h"
 #include "registrydialog.h"
+#include "filedialog.h"
 #include "tcpworker.h"
 
 ServerDlg * __ServerDlg__ = nullptr;
@@ -135,11 +136,16 @@ void ServerDlg::on_WindowButton_clicked()
 {
     CreateWorker(WINDOW_REQUIRE);
 }
-
+void ServerDlg::on_FileButton_clicked()
+{
+    qDebug()<<"clicked file button";
+    CreateWorker(FILE_REQUIRE);
+}
 
 void ServerDlg::HandlePacket(CONTEXT_OBJECT *ctx)
 {
     qDebug()<<"serverdlg is handeling";
+    //数据处理
     if(ctx -> dialogIdentity != 0)
     {
 
@@ -165,8 +171,14 @@ void ServerDlg::HandlePacket(CONTEXT_OBJECT *ctx)
             registrydialog -> HandlePacket(ctx->isToken, ctx->payload);
             break;
         }
+        case FILE_DIALOG:{
+            FileDialog *filedialog = (FileDialog*) ctx->dialogHandle;
+            filedialog -> HandlePacket(ctx->isToken, ctx->payload);
+            break;
+        }
         }
     }
+    //模块连接应答
     else
     {
         switch (ctx -> isToken)
@@ -189,6 +201,10 @@ void ServerDlg::HandlePacket(CONTEXT_OBJECT *ctx)
         case REGISTRY_REPLY:
             qDebug()<<"registry reply";
             HandleReply<RegistryDialog,REGISTRY_REQUIRE,REGISTRY_DIALOG>(ctx);
+            break;
+        case FILE_REPLY:
+            qDebug()<<"registry reply";
+            HandleReply<FileDialog,FILE_REQUIRE,FILE_DIALOG>(ctx);
             break;
         default:
             qDebug() << "[ServerDlg] Unknown istoken:" << ctx -> isToken;
