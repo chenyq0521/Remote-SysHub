@@ -112,8 +112,9 @@ void FileManager::handleDiskRequest(const QByteArray &payload)
     QDataStream replyStream(&replyData, QIODevice::WriteOnly);
     replyStream << drives;  // 只发送驱动器列表
 
-    sendPacket(FILE_REPLY, replyData);  // token 41
+    sendPacket(FILE_REPLY, replyData);
 }
+//发送目录下的文件List
 void FileManager::handleFileListRequest(const QByteArray &payload)
 {
     QDataStream stream(payload);
@@ -135,8 +136,6 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
         return;
     }
 
-    // 开始监控目录变化
-    startWatching(path);
 
     // 获取目录内容
     QList<FileInfo> fileList = getDirectoryContents(path);
@@ -146,8 +145,9 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
     QDataStream replyStream(&replyData, QIODevice::WriteOnly);
     replyStream << path << fileList;
 
-    sendPacket(FILE_LIST_REPLY, replyData);  // token 39
+    sendPacket(FILE_LIST_REPLY, replyData);
 }
+
 void FileManager::handleFileSearchRequest(const QByteArray &payload)
 {
     // 取消之前的搜索

@@ -17,7 +17,42 @@
 namespace Ui {
 class FileDialog;  // Ui 命名空间中的类
 }
+struct FileInfo {
+    QString name;
+    qint64 size;
+    QString type;
+    QString suffix;
+    QDateTime modified;
+    QDateTime created;
+    QDateTime accessed;
+    bool isDirectory;
+    bool isHidden;
+    bool isSystem;
+    bool isReadOnly;
+    bool isSymbolicLink;
+    bool isExecutable;
+    QString permissions;
+    QString owner;
+    qint64 diskSize;
 
+    friend QDataStream &operator<<(QDataStream &out, const FileInfo &info) {
+        out << info.name << info.size << info.type << info.suffix
+            << info.modified << info.created << info.accessed
+            << info.isDirectory << info.isHidden << info.isSystem
+            << info.isReadOnly << info.isSymbolicLink << info.isExecutable
+            << info.permissions << info.owner << info.diskSize;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, FileInfo &info) {
+        in >> info.name >> info.size >> info.type >> info.suffix
+            >> info.modified >> info.created >> info.accessed
+            >> info.isDirectory >> info.isHidden >> info.isSystem
+            >> info.isReadOnly >> info.isSymbolicLink >> info.isExecutable
+            >> info.permissions >> info.owner >> info.diskSize;
+        return in;
+    }
+};
 // 注意：这个 FileDialog 是全局命名空间中的类
 class FileDialog : public QDialog
 {
@@ -48,7 +83,7 @@ private:
     void AddFileItem(const QString &name, const QString &size, const QString &type,
                      const QString &modified, bool isDir);
     void ClearFileList();
-    QString FormatSize(qint64 bytes);
+    QString formatSize(qint64 bytes);
 
     // 使用正确的命名空间
     Ui::FileDialog *ui;  // 这是 Ui::FileDialog 类型
@@ -58,6 +93,11 @@ private:
     QString m_currentPath;
     QHash<QString, QTreeWidgetItem*> m_pathItems;
     QFileIconProvider m_iconProvider;
+
+    // UI更新函数
+    void AddFileItem(const FileInfo &fileInfo);
+    void AddDriveItem(const FileInfo &driveInfo);
+    void HandleDriveList(const QByteArray &data);
 };
 
 #endif // FILEDIALOG_H
