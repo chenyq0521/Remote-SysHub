@@ -44,6 +44,7 @@ private:
     void KillProcess(DWORD pid);
     void SuspendProcess(DWORD pid);
     void ResumeProcess(DWORD pid);
+    void SendProcessMemoryInfo(DWORD pid);
     bool EnumProcessData();
 
     bool GetThreadIdentity(IN HANDLE ProcessIdentity, OUT HANDLE* ThreadIdentity);

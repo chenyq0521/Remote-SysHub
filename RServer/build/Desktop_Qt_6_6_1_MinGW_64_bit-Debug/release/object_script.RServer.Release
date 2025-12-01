@@ -1,6 +1,7 @@
 release/cmddialog.o
 release/main.o
 release/processdialog.o
+release/processmemorydialog.o
 release/registrydatadialog.o
 release/registrydialog.o
 release/serverdlg.o
@@ -11,6 +12,7 @@ release/qrc_resources.o
 release/qrc_qmake_qmake_qm_files.o
 release/moc_cmddialog.o
 release/moc_processdialog.o
+release/moc_processmemorydialog.o
 release/moc_registrydatadialog.o
 release/moc_registrydialog.o
 release/moc_serverdlg.o

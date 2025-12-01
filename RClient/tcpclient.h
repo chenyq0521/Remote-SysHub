@@ -43,7 +43,7 @@ signals:
 
 private:
 
-    //PACKET* m_p;kt
+    //PACKET* m_pkt;
     QTcpSocket *m_socket;
     AbsManager *m_manager;
     QByteArray m_sendBuffer;

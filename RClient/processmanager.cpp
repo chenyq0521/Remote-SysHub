@@ -41,6 +41,9 @@ void ProcessManager::HandlePacket(const PACKET &pkt)
     case PROCESS_RESUME_REQUIRE:
         ResumeProcess(pid);
         break;
+    case PROCESS_MEMORY_REQUIRE:
+        SendProcessMemoryInfo(pid);
+        break;
     default:
         qDebug()<<"unknown istoken:"<<pkt.isToken;
         break;
@@ -84,6 +87,44 @@ void ProcessManager::ResumeProcess(DWORD pid)
     }
     Sleep(100);
     SendClientProcessList();
+}
+
+void ProcessManager::SendProcessMemoryInfo(DWORD pid)
+{
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+    if (!hProcess) return;
+
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+
+    QByteArray payload;
+    QDataStream out(&payload, QIODevice::WriteOnly);
+
+    MEMORY_BASIC_INFORMATION mbi;
+    quint8* addr = (quint8*)sysInfo.lpMinimumApplicationAddress;
+
+    while ((ULONG_PTR)addr < (ULONG_PTR)sysInfo.lpMaximumApplicationAddress)
+    {
+        if (!VirtualQueryEx(hProcess, addr, &mbi, sizeof(mbi)))
+            break;
+
+        // 写入 6 个字段
+        out << quint64((quint64)mbi.BaseAddress);
+        out << quint64(mbi.RegionSize);
+        out << quint32(mbi.State);
+        out << quint32(mbi.Protect);
+        out << quint32(mbi.AllocationProtect);
+        out << quint32(mbi.Type);
+
+        addr += mbi.RegionSize;
+    }
+
+    CloseHandle(hProcess);
+
+    PACKET pkt;
+    pkt.isToken = PROCESS_MEMORY_REPLY;
+    pkt.payload = payload;
+    m_client->SendData(pkt);
 }
 
 QString ProcessManager::GetProcessPath(HANDLE ProcessHandle)

@@ -1,5 +1,6 @@
 #include "processdialog.h"
 #include "ui_processdialog.h"
+#include "processmemorydialog.h"
 
 ProcessDialog::ProcessDialog(TcpWorker *worker, CONTEXT_OBJECT* ctx,QWidget *parent)
     : QWidget(parent), m_ctxobj(ctx), m_worker(worker), ui(new Ui::ProcessDialog)
@@ -32,6 +33,12 @@ void ProcessDialog::HandlePacket(unsigned char istoken, QByteArray data)
     case PROCESS_OPERATION_REPLY:
         ShowClientProcessList(data);
         break;
+    case PROCESS_MEMORY_REPLY:
+    {
+        ProcessMemoryDialog *dlg = new ProcessMemoryDialog(this,data);
+        dlg->show();
+        break;
+    }
     default:
         qDebug()<<"unknown token"<<istoken;
         break;
@@ -133,7 +140,7 @@ void ProcessDialog::on_ProcessTableView_customContextMenuRequested(const QPoint 
     connect(KillProcess,&QAction::triggered,this, [=](){SendOperateRequest(PROCESS_KILL_REQUIURE);});
     connect(SuspendProcess,&QAction::triggered,this, [=](){SendOperateRequest(PROCESS_SUSPEND_REQUIRE);});
     connect(ResumeProcess,&QAction::triggered,this, [=](){SendOperateRequest(PROCESS_RESUME_REQUIRE);});
-    //connect(ProcessMemory,&QAction::triggered,this, [=](){SendOperateRequest(PROCESS_MEMORY_REQUIRE);});
+    connect(ProcessMemory,&QAction::triggered,this, [=](){SendOperateRequest(PROCESS_MEMORY_REQUIRE);});
 
     ProcessMenu.exec(ui->ProcessTableView->viewport()->mapToGlobal(pos));
 }

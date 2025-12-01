@@ -7,7 +7,7 @@
 #include <QApplication>
 #include <QObject>
 #include <windows.h>
-#include <winternl.h>     // 如果需要 NT API
+#include <winternl.h>
 #include <tlhelp32.h>
 #include <psapi.h>
 #include "detours.h"
