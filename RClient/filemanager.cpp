@@ -1,4 +1,5 @@
 #include "filemanager.h"
+#include "windows.h"
 #include <QDirIterator>
 #include <QDateTime>
 #include <QProcess>
@@ -240,14 +241,13 @@ void FileManager::handleNewFolderRequest(const QByteArray &payload)
 
     sendPacket(FILE_NEWFOLDER_REPLY, replyData);
 }
-
+//用Windows API获取目录内容List
 QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
 {
     QList<FileInfo> fileList;
-    QDir dir(path);
 
-    // 添加上级目录（如果不是根目录）
-    if (dir.cdUp()) {
+    // 添加上级目录
+    if (path.length() > 3) { // 不是根目录
         FileInfo parent;
         parent.name = "..";
         parent.type = "上级目录";
@@ -255,35 +255,89 @@ QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
         fileList.append(parent);
     }
 
-    // 获取所有条目
-    QFileInfoList entries = dir.entryInfoList(
-        QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System,
-        QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
+    qDebug() << "[FileManager] 目录信息搜索前 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 
-    for (const QFileInfo &entry : entries) {
-        FileInfo info;
-        info.name = entry.fileName();
-        info.suffix = entry.suffix().toLower();
-        info.size = entry.isDir() ? getDirectorySize(entry.absoluteFilePath()) : entry.size();
-        info.type = getFileType(entry);
-        info.modified = entry.lastModified();
-        info.created = entry.birthTime();
-        info.accessed = entry.lastRead();
-        info.isDirectory = entry.isDir();
-        info.isHidden = entry.isHidden();
-        info.isSystem = false; // QFileInfo没有直接的系统文件检测
-        info.isReadOnly = !(entry.permissions() & QFile::WriteUser);
-        info.isSymbolicLink = entry.isSymLink();
-        info.isExecutable = entry.isExecutable();
-        info.permissions = getFilePermissions(entry);
-        info.owner = getFileOwner(entry.absoluteFilePath());
-        info.diskSize = getFileDiskSize(entry.absoluteFilePath());
+    // 使用Windows API直接枚举文件
+    WIN32_FIND_DATAW findData;
+    QString searchPath = QDir::toNativeSeparators(path);
+    if (!searchPath.endsWith("\\")) searchPath += "\\";
+    searchPath += "*.*";
 
-        fileList.append(info);
+    HANDLE hFind = FindFirstFileW((LPCWSTR)searchPath.utf16(), &findData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return fileList;
     }
 
+    do {
+        QString fileName = QString::fromWCharArray(findData.cFileName);
+
+        // 跳过 "." 和 ".."
+        if (fileName == "." || fileName == "..") continue;
+
+        FileInfo info;
+        info.name = fileName;
+
+        // 检查是否为目录
+        info.isDirectory = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+        // 检查是否为隐藏文件
+        info.isHidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+
+        // 文件大小
+        if (!info.isDirectory) {
+            LARGE_INTEGER size;
+            size.LowPart = findData.nFileSizeLow;
+            size.HighPart = findData.nFileSizeHigh;
+            info.size = size.QuadPart;
+
+            // 获取文件后缀
+            int dotIndex = fileName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                info.suffix = fileName.mid(dotIndex + 1).toLower();
+            }
+        } else {
+            info.size = 0; // 目录大小设为0，需要时再计算
+        }
+
+        // 修改时间
+        FILETIME ft = findData.ftLastWriteTime;
+        SYSTEMTIME st;
+        FileTimeToSystemTime(&ft, &st);
+        info.modified = QDateTime(QDate(st.wYear, st.wMonth, st.wDay),
+                                  QTime(st.wHour, st.wMinute, st.wSecond));
+
+        // 使用Shell API快速获取文件类型描述
+        SHFILEINFOW shfi = {0};
+        QString filePath = path + "/" + fileName;
+
+        if (SHGetFileInfoW((LPCWSTR)filePath.utf16(),
+                           0,
+                           &shfi,
+                           sizeof(shfi),
+                           SHGFI_TYPENAME | SHGFI_USEFILEATTRIBUTES)) {
+            info.type = QString::fromWCharArray(shfi.szTypeName);
+        } else {
+            info.type = info.isDirectory ? "文件夹" : "文件";
+        }
+
+        fileList.append(info);
+
+    } while (FindNextFileW(hFind, &findData) != 0);
+
+    FindClose(hFind);
+
+    // 排序：目录在前，按名称排序
+    std::sort(fileList.begin(), fileList.end(), [](const FileInfo &a, const FileInfo &b) {
+        if (a.isDirectory != b.isDirectory) {
+            return a.isDirectory > b.isDirectory; // 目录在前
+        }
+        return QString::compare(a.name, b.name, Qt::CaseInsensitive) < 0;
+    });
+
+    qDebug() << "[FileManager] 目录信息搜索后 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
     return fileList;
 }
+
 
 QList<FileInfo> FileManager::searchFiles(const SearchParams &params)
 {

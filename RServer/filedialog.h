@@ -64,6 +64,7 @@ public:
 
     void HandlePacket(unsigned char isToken, const QByteArray &payload);
 
+//自动连接事件槽函数！
 private slots:
     void on_refreshButton_clicked();
     void on_deleteButton_clicked();

@@ -35,14 +35,6 @@ FileDialog::FileDialog(TcpWorker *worker, CONTEXT_OBJECT *ctx, QWidget *parent)
     ui->treeWidget->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
 
-    // 连接信号槽
-    connect(ui->treeWidget, &QTreeWidget::itemDoubleClicked,
-            this, &FileDialog::on_treeWidget_itemDoubleClicked);
-    connect(ui->treeWidget, &QTreeWidget::currentItemChanged,
-            this, &FileDialog::on_treeWidget_currentItemChanged);
-    connect(ui->diskCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &FileDialog::on_diskCombo_currentIndexChanged);
-
     // 初始化UI
     ui->diskCombo->addItem("正在获取盘符...");
     ui->diskCombo->setEnabled(false);
