@@ -70,8 +70,7 @@ private slots:
     void on_deleteButton_clicked();
     void on_treeWidget_itemDoubleClicked(QTreeWidgetItem *item, int column);
     void on_treeWidget_currentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous);
-    void on_pathLineEdit_returnPressed();
-    void on_backButton_clicked();
+    void on_searchButton_clicked();
     void on_newFolderButton_clicked();
     void on_diskCombo_currentIndexChanged(int index);
 
@@ -84,6 +83,7 @@ private:
     void AddFileItem(const QString &name, const QString &size, const QString &type,
                      const QString &modified, bool isDir);
     void ClearFileList();
+    void SearchFile(QString fileName);
     QString formatSize(qint64 bytes);
 
     // 使用正确的命名空间

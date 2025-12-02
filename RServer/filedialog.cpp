@@ -38,9 +38,12 @@ FileDialog::FileDialog(TcpWorker *worker, CONTEXT_OBJECT *ctx, QWidget *parent)
     // 初始化UI
     ui->diskCombo->addItem("正在获取盘符...");
     ui->diskCombo->setEnabled(false);
-    ui->path->setText("准备连接...");
-    ui->pathLineEdit->setText("");
+    ui->pathLabel->setText("准备连接...");
+    ui->searchEdit->setText("");
 
+    // 搜索框回车 = 点击搜索按钮
+    connect(ui->searchEdit, &QLineEdit::returnPressed,
+            this, &FileDialog::on_searchButton_clicked);
     // 请求盘符信息
     RequestDiskInfo();
 }
@@ -64,7 +67,7 @@ void FileDialog::RequestDiskInfo()
     m_context->isToken = FILE_REQUIRE;
     QMetaObject::invokeMethod(m_worker, "SendData", Qt::QueuedConnection);
 
-    ui->path->setText("正在获取盘符信息...");
+    ui->pathLabel->setText("正在获取盘符信息...");
 }
 
 void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
@@ -125,7 +128,7 @@ void FileDialog::ParseDiskInfo(const QByteArray &data)
 
     if (driveList.isEmpty()) {
         ui->diskCombo->addItem("未找到盘符");
-        ui->path->setText("无可用盘符");
+        ui->pathLabel->setText("无可用盘符");
         return;
     }
 
@@ -150,8 +153,8 @@ void FileDialog::ParseDiskInfo(const QByteArray &data)
         m_currentPath = firstDrive;
 
         // 更新路径显示
-        ui->pathLineEdit->setText(firstDrive);
-        ui->path->setText("正在加载文件列表...");
+        ui->searchEdit->setText(firstDrive);
+        ui->pathLabel->setText("正在加载文件列表...");
 
         // 请求该盘符的文件列表
         qDebug()<<"请求文件路径:"<<m_currentPath;
@@ -159,7 +162,7 @@ void FileDialog::ParseDiskInfo(const QByteArray &data)
     }
 
     // 更新状态显示
-    ui->path->setText(QString("已连接，共 %1 个驱动器").arg(driveList.size()));
+    ui->pathLabel->setText(QString("已连接，共 %1 个驱动器").arg(driveList.size()));
 }
 
 void FileDialog::on_diskCombo_currentIndexChanged(int index)
@@ -177,8 +180,8 @@ void FileDialog::on_diskCombo_currentIndexChanged(int index)
     }
 
     m_currentPath = drive;
-    ui->pathLineEdit->setText(drive);
-    ui->path->setText("正在加载文件列表...");
+    ui->searchEdit->setText(drive);
+    ui->pathLabel->setText("正在加载文件列表...");
 
     // 请求该盘符的文件列表
     SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
@@ -271,11 +274,8 @@ void FileDialog::HandleDriveList(const QByteArray &data)
 
 void FileDialog::UpdateCurrentPath(const QString &path)
 {
-    ui->pathLineEdit->setText(path);
+    ui->pathLabel->setText(path);
 
-    // 更新按钮状态
-    ui->backButton->setEnabled(path != "MyComputer" && path != "/" &&
-                               path != "C:\\" && path != "C:/");
 }
 
 void FileDialog::SendFileRequest(const QString &path, unsigned char requestType)
@@ -593,27 +593,39 @@ void FileDialog::on_treeWidget_currentItemChanged(QTreeWidgetItem *current, QTre
     ui->deleteButton->setEnabled(fileName != ".." && fileName != "加载中...");
 }
 
-void FileDialog::on_pathLineEdit_returnPressed()
+//搜索按钮点击事件
+void FileDialog::on_searchButton_clicked()
 {
-    QString newPath = ui->pathLineEdit->text().trimmed();
-    if (!newPath.isEmpty() && newPath != m_currentPath) {
-        SendFileRequest(newPath, FILE_LIST_REQUEST);
-    }
-}
-
-void FileDialog::on_backButton_clicked()
-{
-    if (m_currentPath == "MyComputer" || m_currentPath == "/" ||
-        m_currentPath == "C:\\" || m_currentPath == "C:/") {
+    QString curtext = ui->searchEdit->text();
+    //回到当前目录
+    if(curtext.isEmpty()){
+        SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
         return;
     }
-
-    QDir dir(m_currentPath);
-    if (dir.cdUp()) {
-        SendFileRequest(dir.absolutePath(), FILE_LIST_REQUEST);
-    }
+    SearchFile(curtext);
 }
+void FileDialog::SearchFile(QString fileName){
+    if(fileName.isEmpty()){
+        return ;
+    }
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+    stream.setVersion(QDataStream::Qt_5_15);
 
+
+    stream << fileName;
+
+    m_context->payload = data;
+    m_context->isToken = FILE_SEARCH_REQUEST;
+    QMetaObject::invokeMethod(m_worker, "SendData", Qt::QueuedConnection);
+
+    // 显示加载提示
+    ui->treeWidget->clear();
+    QTreeWidgetItem *loadingItem = new QTreeWidgetItem(ui->treeWidget);
+    loadingItem->setText(0, "加载中...");
+    loadingItem->setIcon(0, QIcon(":/icons/loading.png"));
+
+}
 void FileDialog::on_newFolderButton_clicked()
 {
     bool ok;
