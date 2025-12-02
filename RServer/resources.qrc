@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/asserts">
+        <file>asserts/Dword.ico</file>
+        <file>asserts/folder.ico</file>
+        <file>asserts/root.ico</file>
+        <file>asserts/String.ico</file>
+    </qresource>
+</RCC>
