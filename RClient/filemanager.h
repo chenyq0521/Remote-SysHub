@@ -2,6 +2,7 @@
 #define FILEMANAGER_H
 
 #include "absmanager.h"
+#include "USNFileFinder.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -104,11 +105,19 @@ private:
     QList<FileInfo> searchFiles(const SearchParams &params);
     FileInfo getDetailedFileInfo(const QString &filePath);
     QString getFileType(const QFileInfo &fileInfo);
+    QList<FileInfo> searchFiles(const QString &params);
+    QString getFileTypeByExtension(const QString &extension);
     QString getFilePermissions(const QFileInfo &fileInfo);
     QString getFileOwner(const QString &filePath);
     qint64 getFileDiskSize(const QString &filePath);
     qint64 getDirectorySize(const QString &path);
     QString formatFileSize(qint64 bytes);
+    // 搜索辅助函数
+    QList<FileInfo> searchFilesWithUSN(const QString &driveLetter, const QString &fileNamePattern);
+    QList<FileInfo> searchFilesWithTraditional(const QString &path, const QString &fileNamePattern);
+    FileInfo convertUSNToFileInfo(const USNFileInfo &usnInfo);
+    bool matchPattern(const QString &fileName, const QString &pattern);
+    USNFileFinder* getOrCreateUSNFinder(const QString &driveLetter);
 
     // 文件系统监控
     void startWatching(const QString &path);
@@ -120,6 +129,7 @@ private:
     bool m_searchCancelled;
     QFileSystemWatcher *m_watcher;
     QFuture<void> m_searchFuture;
+    QMap<QString, USNFileFinder*> m_usnFinders; // 按盘符存储查找器
 
     // 发送回复的辅助函数
     void sendFileListReply(const QString &path, const QList<FileInfo> &fileList);

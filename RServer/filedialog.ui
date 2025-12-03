@@ -17,10 +17,10 @@
    <item>
     <layout class="QHBoxLayout" name="pathLayout">
      <item>
-      <widget class="QLineEdit" name="pathLineEdit"/>
+      <widget class="QLineEdit" name="searchEdit"/>
      </item>
      <item>
-      <widget class="QPushButton" name="backButton">
+      <widget class="QPushButton" name="searchButton">
        <property name="text">
         <string>搜索</string>
        </property>
@@ -41,7 +41,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLabel" name="path">
+      <widget class="QLabel" name="pathLabel">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
          <horstretch>0</horstretch>

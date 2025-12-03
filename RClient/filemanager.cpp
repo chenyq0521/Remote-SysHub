@@ -1,4 +1,5 @@
 #include "filemanager.h"
+#include "windows.h"
 #include <QDirIterator>
 #include <QDateTime>
 #include <QProcess>
@@ -159,22 +160,15 @@ void FileManager::handleFileSearchRequest(const QByteArray &payload)
     m_searchCancelled = false;
 
     QDataStream stream(payload);
-    SearchParams params;
-    stream >> params;
+    QString searchInput;
+    stream >> searchInput;
 
-    qDebug() << "[FileManager] File search request:"
-             << "path:" << params.path
-             << "keyword:" << params.keyword
-             << "subfolders:" << params.searchSubfolders;
+    qDebug() << "[FileManager] File search request:" << searchInput;
 
-    if (!QDir(params.path).exists()) {
-        sendErrorReply(FILE_SEARCH_REPLY, QString("搜索路径不存在: %1").arg(params.path));
-        return;
-    }
 
     // 异步搜索
-    m_searchFuture = QtConcurrent::run([this, params]() {
-        QList<FileInfo> results = searchFiles(params);
+    m_searchFuture = QtConcurrent::run([this, searchInput]() {
+    QList<FileInfo> results = searchFiles(searchInput);
 
         if (!m_searchCancelled) {
             sendSearchReply(results, true);
@@ -242,54 +236,7 @@ void FileManager::handleNewFolderRequest(const QByteArray &payload)
 
     sendPacket(FILE_NEWFOLDER_REPLY, replyData);
 }
-
-/*
-QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
-{
-    QList<FileInfo> fileList;
-    QDir dir(path);
-
-    // 添加上级目录（如果不是根目录）
-    if (dir.cdUp()) {
-        FileInfo parent;
-        parent.name = "..";
-        parent.type = "上级目录";
-        parent.isDirectory = true;
-        fileList.append(parent);
-    }
-
-    // 获取所有条目
-    qDebug() << "[FileManager] 目录信息搜索前 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-    QFileInfoList entries = dir.entryInfoList(
-        QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System,
-        QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
-
-    for (const QFileInfo &entry : entries) {
-        FileInfo info;
-        info.name = entry.fileName();
-        info.suffix = entry.suffix().toLower();
-        info.size = entry.isDir() ? getDirectorySize(entry.absoluteFilePath()) : entry.size();
-        info.type = getFileType(entry);
-        info.modified = entry.lastModified();
-        info.created = entry.birthTime();
-        info.accessed = entry.lastRead();
-        info.isDirectory = entry.isDir();
-        info.isHidden = entry.isHidden();
-        info.isSystem = false; // QFileInfo没有直接的系统文件检测
-        info.isReadOnly = !(entry.permissions() & QFile::WriteUser);
-        info.isSymbolicLink = entry.isSymLink();
-        info.isExecutable = entry.isExecutable();
-        info.permissions = getFilePermissions(entry);
-        info.owner = getFileOwner(entry.absoluteFilePath());
-        info.diskSize = getFileDiskSize(entry.absoluteFilePath());
-
-        fileList.append(info);
-    }
-    qDebug() << "[FileManager] 目录信息搜索后 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-
-    return fileList;
-}*/
-
+//用Windows API获取目录内容List
 QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
 {
     QList<FileInfo> fileList;
@@ -386,67 +333,146 @@ QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
     return fileList;
 }
 
-QList<FileInfo> FileManager::searchFiles(const SearchParams &params)
+QList<FileInfo> FileManager::searchFiles(const QString &input)
+{
+
+    QList<FileInfo> results;
+
+    // 检查输入格式
+    if (input.trimmed().isEmpty()) {
+        qWarning() << "[FileManager] 搜索参数为空";
+        return results;
+    }
+
+    // 解析输入：格式为 "盘符:文件名"，如 "C:a.txt" 或 "D:*.exe"
+    QString trimmed = input.trimmed();
+
+    // 分离盘符和文件名
+    QString driveLetter;
+    QString fileNamePattern;
+
+    if (trimmed.length() >= 2 && trimmed[1] == ':') {
+        driveLetter = trimmed.left(2);  // 如 "C:"
+        fileNamePattern = trimmed.mid(2); // 如 "a.txt" 或 "*.exe"
+    } else {
+        // 默认当前盘符
+        driveLetter = QDir::currentPath().left(2);
+        fileNamePattern = trimmed;
+    }
+
+    // 如果文件名模式为空，默认搜索所有文件
+    if (fileNamePattern.isEmpty()) {
+        fileNamePattern = "*";
+    }
+
+    qDebug() << "[FileManager] 搜索参数 - 盘符:" << driveLetter
+             << "文件名模式:" << fileNamePattern;
+
+    // 检查是否为NTFS文件系统
+    QString drivePath = driveLetter + "\\";
+    bool useUSN = USNFileFinder::isNTFSVolume(drivePath);
+
+    if (useUSN) {
+        // 使用USN搜索
+        return searchFilesWithUSN(driveLetter, fileNamePattern);
+    } else {
+        // 使用传统搜索
+        return searchFilesWithTraditional(drivePath, fileNamePattern);
+    }
+}
+// USN搜索实现
+QList<FileInfo> FileManager::searchFilesWithUSN(const QString &driveLetter, const QString &fileNamePattern)
+{
+    QList<FileInfo> results;
+
+    // 获取或创建USN查找器
+    USNFileFinder* finder = getOrCreateUSNFinder(driveLetter);
+    if (!finder) {
+        qWarning() << "[FileManager] 无法创建USN查找器，回退到传统搜索";
+        return searchFilesWithTraditional(driveLetter + "\\", fileNamePattern);
+    }
+
+    // 搜索文件
+    QVector<USNFileInfo> usnResults;
+    qDebug()<<"开始搜索文件："<<driveLetter<<"//"<<fileNamePattern;
+    if (!finder->searchFiles(fileNamePattern, usnResults)) {
+        qWarning() << "[FileManager] USN搜索失败，回退到传统搜索";
+        return searchFilesWithTraditional(driveLetter + "\\", fileNamePattern);
+    }
+
+    qDebug() << "[FileManager] USN搜索找到" << usnResults.size() << "个文件";
+
+    // 转换结果
+    int found = 0;
+    for (const USNFileInfo &usnInfo : usnResults) {
+        if (m_searchCancelled) {
+            // emit searchCancelled();
+            return results;
+        }
+
+        // 进度报告（每100个文件报告一次）
+        if (found % 100 == 0 && found > 0) {
+            emit searchProgress(found, found, usnInfo.fileName);
+        }
+
+        // 转换为FileInfo
+        FileInfo fileInfo = convertUSNToFileInfo(usnInfo);
+        results.append(fileInfo);
+        found++;
+
+        // 限制结果数量
+        if (found >= 1000) {
+            emit searchProgress(found, found, "搜索结果过多，已限制为1000条");
+            break;
+        }
+    }
+
+    return results;
+}
+
+// 传统搜索实现（保持原有逻辑）
+QList<FileInfo> FileManager::searchFilesWithTraditional(const QString &path, const QString &fileNamePattern)
 {
     QList<FileInfo> results;
     int fileCount = 0;
-
-    QDirIterator::IteratorFlags flags = QDirIterator::NoIteratorFlags;
-    if (params.searchSubfolders) {
-        flags |= QDirIterator::Subdirectories;
+    // 创建搜索过滤器
+    QStringList filters;
+    if (!fileNamePattern.isEmpty() && fileNamePattern != "*") {
+        filters << fileNamePattern;
+    } else {
+        filters << "*";
     }
 
-    QDirIterator it(params.path,
-                    params.filters.isEmpty() ? QStringList("*") : params.filters,
+    QDirIterator it(path,
+                    filters,
                     QDir::AllEntries | QDir::NoDotAndDotDot | QDir::System,
-                    flags);
+                    QDirIterator::Subdirectories);
 
     QRegularExpression regex;
-    if (!params.keyword.isEmpty()) {
-        QRegularExpression::PatternOptions options = QRegularExpression::NoPatternOption;
-        if (!params.caseSensitive) {
-            options |= QRegularExpression::CaseInsensitiveOption;
-        }
-        regex.setPattern(params.keyword);
-        regex.setPatternOptions(options);
+    if (fileNamePattern.contains('*') || fileNamePattern.contains('?')) {
+        // 将通配符转换为正则表达式
+        QString regexPattern = QRegularExpression::wildcardToRegularExpression(fileNamePattern);
+        regex.setPattern(regexPattern);
+        regex.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
     }
-
-    QStringList visitedDirs;
-
     while (it.hasNext() && !m_searchCancelled) {
         QString filePath = it.next();
         QFileInfo info = it.fileInfo();
-
-        // 跳过重复目录
-        if (info.isDir()) {
-            if (visitedDirs.contains(filePath)) continue;
-            visitedDirs.append(filePath);
-        }
-
         fileCount++;
 
         // 发送进度信号
         if (fileCount % 100 == 0) {
             emit searchProgress(fileCount, 0, info.fileName());
         }
-
-        // 关键词匹配
+        // 文件名匹配
         bool match = false;
-        if (params.keyword.isEmpty()) {
-            match = true; // 空关键词匹配所有
+
+        if (fileNamePattern.contains('*') || fileNamePattern.contains('?')) {
+            // 通配符匹配
+            match = regex.match(info.fileName()).hasMatch();
         } else {
-            // 匹配文件名
-            if (regex.match(info.fileName()).hasMatch()) {
-                match = true;
-            }
-            // 匹配路径
-            else if (regex.match(info.absoluteFilePath()).hasMatch()) {
-                match = true;
-            }
-            // 匹配后缀
-            else if (regex.match(info.suffix()).hasMatch()) {
-                match = true;
-            }
+            // 精确匹配（不区分大小写）
+            match = info.fileName().compare(fileNamePattern, Qt::CaseInsensitive) == 0;
         }
 
         if (match) {
@@ -479,6 +505,106 @@ QList<FileInfo> FileManager::searchFiles(const SearchParams &params)
 
     return results;
 }
+
+// 获取或创建USN查找器
+USNFileFinder* FileManager::getOrCreateUSNFinder(const QString &driveLetter)
+{
+    QString driveKey = driveLetter.toUpper();
+
+    // 如果已经存在，直接返回
+    if (m_usnFinders.contains(driveKey)) {
+        return m_usnFinders[driveKey];
+    }
+
+    // 创建新的USN查找器
+    QString drivePath = driveKey + "\\";
+
+    // 检查是否为NTFS
+    if (!USNFileFinder::isNTFSVolume(drivePath)) {
+        qDebug() << "[FileManager] 驱动器" << drivePath << "不是NTFS格式";
+        return nullptr;
+    }
+
+    USNFileFinder* finder = new USNFileFinder();
+
+    // 初始化USN查找器
+    if (!finder->initialize(driveKey)) {
+        qWarning() << "[FileManager] 初始化USN查找器失败:" << driveKey;
+        delete finder;
+        return nullptr;
+    }
+
+    m_usnFinders[driveKey] = finder;
+    qDebug() << "[FileManager] 创建USN查找器:" << driveKey;
+
+    return finder;
+}
+
+// 转换USNFileInfo为FileInfo
+FileInfo FileManager::convertUSNToFileInfo(const USNFileInfo &usnInfo)
+{
+    FileInfo fileInfo;
+
+    // 基本信息
+    fileInfo.name = usnInfo.fileName;
+
+    // 文件后缀
+    int dotIndex = usnInfo.fileName.lastIndexOf('.');
+    if (dotIndex > 0) {
+        fileInfo.suffix = usnInfo.fileName.mid(dotIndex + 1).toLower();
+    }
+
+    // 文件大小
+    fileInfo.size = usnInfo.fileSize;
+
+    // 判断是否为目录
+    if (usnInfo.fileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        fileInfo.isDirectory = true;
+        fileInfo.type = "文件夹";
+
+        // 如果需要计算目录大小
+        if (fileInfo.size == 0) {
+            fileInfo.size = getDirectorySize(usnInfo.fullPath);
+        }
+    } else {
+        fileInfo.isDirectory = false;
+        fileInfo.type = getFileTypeByExtension(fileInfo.suffix);
+    }
+
+    // 时间信息
+    fileInfo.modified = usnInfo.lastWriteTime;
+
+    // 属性信息
+    fileInfo.isHidden = (usnInfo.fileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+    fileInfo.isReadOnly = (usnInfo.fileAttributes & FILE_ATTRIBUTE_READONLY) != 0;
+    fileInfo.isSystem = (usnInfo.fileAttributes & FILE_ATTRIBUTE_SYSTEM) != 0;
+
+    // 使用QFileInfo获取更多信息
+    QFileInfo qtFileInfo(usnInfo.fullPath);
+    if (qtFileInfo.exists()) {
+        fileInfo.permissions = getFilePermissions(qtFileInfo);
+        fileInfo.owner = getFileOwner(usnInfo.fullPath);
+        fileInfo.diskSize = getFileDiskSize(usnInfo.fullPath);
+        fileInfo.isSymbolicLink = qtFileInfo.isSymLink();
+        fileInfo.isExecutable = qtFileInfo.isExecutable();
+
+        // 如果文件大小不准确，重新获取
+        if (!fileInfo.isDirectory && fileInfo.size == 0) {
+            fileInfo.size = qtFileInfo.size();
+        }
+    }
+
+    return fileInfo;
+}
+
+// 根据扩展名获取文件类型
+QString FileManager::getFileTypeByExtension(const QString &extension)
+{
+    // 复用现有的getFileType函数逻辑
+    QFileInfo dummyFile("dummy." + extension);
+    return getFileType(dummyFile);
+}
+
 
 FileInfo FileManager::getDetailedFileInfo(const QString &filePath)
 {
