@@ -540,11 +540,6 @@ QString FileDialog::formatSize(qint64 bytes)
 
 // ============== 槽函数实现 ==============
 
-void FileDialog::on_refreshButton_clicked()
-{
-    SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
-}
-
 void FileDialog::on_deleteButton_clicked()
 {
     QTreeWidgetItem *item = ui->treeWidget->currentItem();
@@ -569,7 +564,7 @@ void FileDialog::on_deleteButton_clicked()
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setVersion(QDataStream::Qt_5_15);
-    stream << FILE_DELETE_REQUEST << filePath;
+    stream<< filePath;
 
     m_context->payload = data;
     m_context->isToken = FILE_DELETE_REQUEST;
@@ -667,7 +662,7 @@ void FileDialog::on_newFolderButton_clicked()
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setVersion(QDataStream::Qt_5_15);
-    stream << FILE_NEWFOLDER_REQUEST << fullPath;
+    stream << fullPath;
 
     m_context->payload = data;
     m_context->isToken = FILE_NEWFOLDER_REQUEST;

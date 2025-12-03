@@ -79,7 +79,7 @@ void FileManager::HandlePacket(const PACKET& packet)
 
 void FileManager::handleDiskRequest(const QByteArray &payload)
 {
-    qDebug() << "[FileManager] Handling disk request";
+    qDebug() << "[FileManager] Handling disk request"<<payload;
 
     // 获取Windows盘符列表
     QList<FileInfo> drives;
