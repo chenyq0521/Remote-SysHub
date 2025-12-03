@@ -4,3 +4,7 @@ Remote SysHub is a lightweight, cross-platform framework for remote system-resou
 
 Remote SysHub 是一个轻量级、跨平台的远程系统资源控制框架。
 它专注于对目标主机的四类核心对象——进程、文件、注册表和服务——进行实时的枚举、配置和操作。
+
+平台：Windows QT 6.5.3
+语言：C++
+编译环境：Mingw64
