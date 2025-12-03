@@ -14,6 +14,7 @@ LIBS += -lws2_32 -ldetours
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    USNFileFinder.cpp \
     absmanager.cpp \
     cmdmanager.cpp \
     filemanager.cpp \
@@ -27,6 +28,7 @@ SOURCES += \
     windowmanager.cpp
 
 HEADERS += \
+    USNFileFinder.h \
     absmanager.h \
     cmdmanager.h \
     common.h \

@@ -93,7 +93,6 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
         }
         break;
     }
-
     case FILE_NEWFOLDER_REPLY: {
         bool success;
         QString message;
@@ -105,6 +104,36 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
         }
         break;
     }
+    case FILE_SEARCH_REPLY: {
+        qDebug()<<"解析搜索列表";
+        QDataStream stream(payload);
+        stream.setVersion(QDataStream::Qt_5_15);
+        QList<FileInfo> fileList;
+
+        try {
+
+            // 读取文件列表
+            stream >> fileList;
+            QString label = QString("收到搜索结果，共: %1 条记录").arg(fileList.size());
+
+            // 更新UI显示
+           ui->pathLabel->setText(label);
+
+            // 清空当前显示
+            ClearFileList();
+
+            // 添加文件项到表格
+            for (const FileInfo &fileInfo : fileList) {
+                AddFileItem(fileInfo);
+            }
+
+        } catch (const std::exception &e) {
+            qWarning() << "[FileDialog] Error parsing file list:" << e.what();
+            ui->treeWidget->clear();
+            ui->treeWidget->addTopLevelItem(new QTreeWidgetItem(QStringList() << "解析错误"));
+        }
+    }
+    break;
 
     default:
         qDebug() << "[FileDialog] Unknown packet type:" << isToken;
@@ -192,8 +221,6 @@ void FileDialog::ParseFileList(const QByteArray &data)
     qDebug()<<"解析文件列表";
     QDataStream stream(data);
     stream.setVersion(QDataStream::Qt_5_15);
-
-    unsigned char packetType;
     QString currentPath;
     QList<FileInfo> fileList;
 
@@ -611,9 +638,8 @@ void FileDialog::SearchFile(QString fileName){
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setVersion(QDataStream::Qt_5_15);
-
-
-    stream << fileName;
+    QString fullSearchPath = m_currentPath.left(2) + fileName;
+    stream <<fullSearchPath;
 
     m_context->payload = data;
     m_context->isToken = FILE_SEARCH_REQUEST;
