@@ -22,6 +22,7 @@ public:
     ~ProcessDialog();
 
     void HandlePacket(unsigned char istoken,QByteArray data);
+    void CreateInjectDialog(quint32 pid);
 private slots:
     void on_refreshButton_clicked();
 
@@ -44,5 +45,8 @@ private:
     QSortFilterProxyModel *m_proxyModel;
     Ui::ProcessDialog *ui;
 };
+
+
+
 
 #endif // PROCESSDIALOG_H

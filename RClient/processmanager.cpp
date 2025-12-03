@@ -1,5 +1,13 @@
 #include "processmanager.h"
 
+
+//函数指针声明
+BOOL  (WINAPI *OldTerminateProcess)(HANDLE hProcess, UINT uExitCode)   = ::TerminateProcess;
+HANDLE(WINAPI *OldOpenProcess)(DWORD dwDesiredAccess,
+                               BOOL bInheritHandle,DWORD dwProcessId) = ::OpenProcess;
+HMODULE(WINAPI *OldGetModuleHandleW)(LPCWSTR lpModuleName)             = ::GetModuleHandleW;
+
+
 ProcessManager::ProcessManager(TcpClient *TClient,QObject *parent): AbsManager(TClient)
 {
     qDebug()<<"A Process Manager is created.";
@@ -43,6 +51,18 @@ void ProcessManager::HandlePacket(const PACKET &pkt)
         break;
     case PROCESS_MEMORY_REQUIRE:
         SendProcessMemoryInfo(pid);
+        break;
+    case PROCESS_HOOK_INSTALL:
+        quint8 choice;
+        in>>choice;
+        qDebug()<<"hook insatll"<<pid<<choice;
+        InstallHook(pid,choice);
+        break;
+    case PROCESS_HOOK_UNINSTALL:
+        quint8 Unchoice;
+        in>>Unchoice;
+        qDebug()<<"hook unistall"<<pid;
+        UninstallHook(pid,Unchoice);
         break;
     default:
         qDebug()<<"unknown istoken:"<<pkt.isToken;
@@ -391,4 +411,197 @@ void ProcessManager::SendClientProcessList()
     }
 
     m_client -> SendData (pkt);
+}
+
+void ProcessManager::InstallHook(DWORD pid, quint8 choice)
+{
+    qDebug()<<"Install hook";
+
+    //获得函数指针
+    PVOID *ppRawTerminate = (PVOID*)&OldTerminateProcess;   // 一定要 (PVOID*)
+    PVOID pDetourTerminate = (PVOID)&NewTerminateProcess;
+    // 2. OpenProcess
+    PVOID* ppRawOpenProcess = (PVOID*)&OldOpenProcess;
+    PVOID pDetourOpenProcess = (PVOID)&NewOpenProcess;
+    // 3. GetModuleHandleW
+    PVOID* ppRawGetModuleHandleW = (PVOID*)&OldGetModuleHandleW;   // 一定要 (PVOID*)
+    PVOID pDetourGetModuleHandleW = (PVOID)&NewGetModuleHandleW;
+
+    DetourTransactionBegin();
+    //更新线程信息
+    DetourUpdateThread(GetCurrentThread());
+
+    switch (choice) {
+    case 0: // TerminateProcess
+        if (m_termProcessHooked) {          // 已经挂过就跳过
+            qDebug() << "TerminateProcess already hooked";
+            DetourTransactionAbort();
+            return;
+        }
+        if (DetourAttach(ppRawTerminate, pDetourTerminate) != NO_ERROR) {
+            qDebug() << "DetourAttach TerminateProcess failed";
+            DetourTransactionAbort();
+            return;
+        }
+        m_termProcessHooked = true;
+        break;
+
+    case 1: // OpenProcess
+        if (m_openProcessHooked) {
+            qDebug() << "OpenProcess already hooked";
+            DetourTransactionAbort();
+            return;
+        }
+        if (DetourAttach(ppRawOpenProcess, pDetourOpenProcess) != NO_ERROR) {
+            qDebug() << "DetourAttach OpenProcess failed";
+            DetourTransactionAbort();
+            return;
+        }
+        m_openProcessHooked = true;
+        break;
+
+    case 2: // GetModuleHandleW
+        if (m_getModuleHooked) {
+            qDebug() << "GetModuleHandleW already hooked";
+            DetourTransactionAbort();
+            return;
+        }
+        if (DetourAttach(ppRawGetModuleHandleW, pDetourGetModuleHandleW) != NO_ERROR) {
+            qDebug() << "DetourAttach GetModuleHandleW failed";
+            DetourTransactionAbort();
+            return;
+        }
+        m_getModuleHooked = true;
+        break;
+
+    default:
+        DetourTransactionAbort();
+        return;
+    }
+    //结束事务
+    DetourTransactionCommit();
+
+}
+
+void ProcessManager::UninstallHook(DWORD pid, quint8 choice)
+{
+    qDebug()<<"UnInstall hook";
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+
+    //获得函数指针
+    PVOID *ppRawTerminate = (PVOID*)&OldTerminateProcess;   // 一定要 (PVOID*)
+    PVOID pDetourTerminate = (PVOID)&NewTerminateProcess;
+    // 2. OpenProcess
+    PVOID* ppRawOpenProcess = (PVOID*)&OldOpenProcess;
+    PVOID pDetourOpenProcess = (PVOID)&NewOpenProcess;
+    // 3. GetModuleHandleW
+    PVOID* ppRawGetModuleHandleW = (PVOID*)&OldGetModuleHandleW;   // 一定要 (PVOID*)
+    PVOID pDetourGetModuleHandleW = (PVOID)&NewGetModuleHandleW;
+
+    switch (choice) {
+    case 0: // TerminateProcess
+        if (!m_termProcessHooked) {
+            qDebug() << "TerminateProcess hook not installed";
+            DetourTransactionAbort();
+            return;
+        }
+
+        DetourDetach(ppRawTerminate, pDetourTerminate);
+        m_termProcessHooked = false;
+        break;
+
+    case 1: // OpenProcess
+        if (!m_openProcessHooked) {
+            qDebug() << "OpenProcess hook not installed";
+            DetourTransactionAbort();
+            return;
+        }
+        DetourDetach(ppRawOpenProcess, pDetourOpenProcess);
+        m_openProcessHooked = false;
+        break;
+
+    case 2: // GetModuleHandleW
+        if (!m_getModuleHooked) {
+            qDebug() << "GetModuleHandleW hook not installed";
+            DetourTransactionAbort();
+            return;
+        }
+        DetourDetach(ppRawGetModuleHandleW, pDetourGetModuleHandleW);
+        m_getModuleHooked = false;
+        break;
+
+    default:
+        DetourTransactionAbort();
+        return;
+    }
+
+    LONG result = DetourTransactionCommit();
+    if (result == NO_ERROR) {
+        qDebug() << "Hook uninstalled successfully";
+    } else {
+        qCritical() << "Failed to uninstall hook. Error code:" << result;
+    }
+
+}
+
+
+BOOL WINAPI NewTerminateProcess(HANDLE hProcess, UINT uExitCode)
+{
+    // ---你的自定义逻辑 ---
+    // 可以在这里添加日志、检查权限、阻止某些进程关闭等
+    qDebug("--- [HOOKED] TerminateProcess called ---\n");
+    qDebug("Attempting to terminate handle: 0x%p with exit code: %u\n", hProcess, uExitCode);
+
+    //QMessageBox::information(nullptr, "Hook Alert", "TerminateProcess has been hooked!");
+    // 如果你希望执行原始功能，请调用 OldTerminateProcess
+    //BOOL result = OldTerminateProcess(hProcess, uExitCode);
+
+    //printf("TerminateProcess completed. Result: %d\n", result);
+    // ---你的自定义逻辑结束---
+    BOOL result = true;
+
+    return result;
+}
+
+HANDLE WINAPI NewOpenProcess(DWORD dwDesiredAccess,
+                             BOOL  bInheritHandle,
+                             DWORD dwProcessId)
+{
+    /* --- 你的自定义逻辑 --- */
+    qDebug("--- [HOOKED] OpenProcess called ---");
+    qDebug("DesiredAccess: 0x%08lX, Inherit: %d, PID: %lu",
+           dwDesiredAccess, bInheritHandle, dwProcessId);
+
+    QMessageBox::information(nullptr, "Hook Alert", "OpenProcess has been hooked!");
+
+    /* 放行：调用原始函数 */
+    HANDLE hRet = 0;
+    hRet = OldOpenProcess(dwDesiredAccess, bInheritHandle, dwProcessId);
+
+    qDebug("OpenProcess returned: 0x%p", hRet);
+    /* --- 自定义逻辑结束 --- */
+
+    return hRet;
+}
+
+HMODULE WINAPI NewGetModuleHandleW(LPCWSTR lpModuleName)
+{
+    /* --- 你的自定义逻辑 --- */
+    qDebug("--- [HOOKED] GetModuleHandleW called ---");
+    if (lpModuleName)
+        qDebug("Module name: %ls", lpModuleName);
+    else
+        qDebug("Module name: (null) -> 当前可执行映像");
+
+    QMessageBox::information(nullptr, "Hook Alert", "GetModuleHandleW has been hooked!");
+
+    /* 放行：调用原始函数 */
+    HMODULE hRet = 0;
+    //hRet = OldGetModuleHandleW(lpModuleName);
+
+    qDebug("GetModuleHandleW returned: 0x%p", hRet);
+    /* --- 自定义逻辑结束 --- */
+
+    return hRet;
 }

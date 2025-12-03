@@ -7,7 +7,7 @@ CONFIG += c++17
 INCLUDEPATH += $$PWD
 
 LIBS += -L$$PWD
-LIBS += -lws2_32 -ldetours
+LIBS += -L$$PWD -ldetours
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -29,6 +29,7 @@ HEADERS += \
     absmanager.h \
     cmdmanager.h \
     common.h \
+    detours.h \
     kernelmanager.h \
     loginhelper.h \
     mainwindow.h \
@@ -36,8 +37,7 @@ HEADERS += \
     processmanager.h \
     registrymanager.h \
     tcpclient.h \
-    windowmanager.h \
-    detours.h
+    windowmanager.h
 
 FORMS += \
     mainwindow.ui
@@ -47,3 +47,7 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
+
+INCLUDEPATH += $$PWD
+LIBS        += -L$$PWD -ldetours
+win32-g++:PRE_TARGETDEPS += $$PWD/libdetours.a

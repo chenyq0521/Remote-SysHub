@@ -14,6 +14,7 @@ SOURCES += \
     cmddialog.cpp \
     main.cpp \
     processdialog.cpp \
+    processinject.cpp \
     processmemorydialog.cpp \
     registrydatadialog.cpp \
     registrydialog.cpp \
@@ -26,6 +27,7 @@ HEADERS += \
     cmddialog.h \
     common.h \
     processdialog.h \
+    processinject.h \
     processmemorydialog.h \
     registrydatadialog.h \
     registrydialog.h \
@@ -37,6 +39,7 @@ HEADERS += \
 FORMS += \
     cmddialog.ui \
     processdialog.ui \
+    processinject.ui \
     processmemorydialog.ui \
     registrydatadialog.ui \
     registrydialog.ui \
