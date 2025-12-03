@@ -8,6 +8,8 @@
 #include <minwindef.h>
 #include <synchapi.h>
 #include <QString>
+#include <QDateTime>
+
 #define PACKET_LENGTH 0x4000
 
 typedef struct _PACKET_

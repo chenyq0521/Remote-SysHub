@@ -54,6 +54,8 @@ void TcpClient::SendData(PACKET &pkt)
     }
 
     qDebug() << "[SendData] build full packet, total size =" << fullPacket.size();
+    qDebug() << "[SendData] 发送 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
 
     if (fullPacket.size() <= PACKET_LENGTH) {
         int padding = PACKET_LENGTH - fullPacket.size();

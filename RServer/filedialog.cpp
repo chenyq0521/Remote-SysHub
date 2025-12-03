@@ -34,7 +34,6 @@ FileDialog::FileDialog(TcpWorker *worker, CONTEXT_OBJECT *ctx, QWidget *parent)
     ui->treeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     ui->treeWidget->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
-
     // 初始化UI
     ui->diskCombo->addItem("正在获取盘符...");
     ui->diskCombo->setEnabled(false);
@@ -44,7 +43,6 @@ FileDialog::FileDialog(TcpWorker *worker, CONTEXT_OBJECT *ctx, QWidget *parent)
     // 搜索框回车 = 点击搜索按钮
     connect(ui->searchEdit, &QLineEdit::returnPressed,
             this, &FileDialog::on_searchButton_clicked);
-    // 请求盘符信息
     RequestDiskInfo();
 }
 
@@ -80,6 +78,7 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
         ParseDiskInfo(payload);
         break;
     case FILE_LIST_REPLY:
+        qDebug() << "[FileDialog] 判断包头";
         ParseFileList(payload);
         break;
     case FILE_DELETE_REPLY: {
@@ -134,7 +133,6 @@ void FileDialog::HandlePacket(unsigned char isToken, const QByteArray &payload)
         }
     }
     break;
-
     default:
         qDebug() << "[FileDialog] Unknown packet type:" << isToken;
         break;
@@ -214,6 +212,7 @@ void FileDialog::on_diskCombo_currentIndexChanged(int index)
 
     // 请求该盘符的文件列表
     SendFileRequest(m_currentPath, FILE_LIST_REQUEST);
+    qDebug() << "[SendFileRequest] on_diskCombo_currentIndexChanged请求路径:" << m_currentPath ;
 }
 // 解析文件列表
 void FileDialog::ParseFileList(const QByteArray &data)
@@ -302,13 +301,12 @@ void FileDialog::HandleDriveList(const QByteArray &data)
 void FileDialog::UpdateCurrentPath(const QString &path)
 {
     ui->pathLabel->setText(path);
-
 }
 
 void FileDialog::SendFileRequest(const QString &path, unsigned char requestType)
 {
     if (!m_worker || !m_context) return;
-
+    qDebug() << "[SendFileRequest] 请求路径:" << path << "类型:" << requestType;
     QByteArray data;
     QDataStream stream(&data, QIODevice::WriteOnly);
     stream.setVersion(QDataStream::Qt_5_15);
@@ -581,7 +579,6 @@ void FileDialog::on_deleteButton_clicked()
 void FileDialog::on_treeWidget_itemDoubleClicked(QTreeWidgetItem *item, int column)
 {
     Q_UNUSED(column);
-
     if (!item) return;
 
     bool isDir = item->data(0, Qt::UserRole + 1).toBool();
@@ -606,7 +603,6 @@ void FileDialog::on_treeWidget_itemDoubleClicked(QTreeWidgetItem *item, int colu
         // TODO: 可以添加文件预览、下载等功能的调用
     }
 }
-
 void FileDialog::on_treeWidget_currentItemChanged(QTreeWidgetItem *current, QTreeWidgetItem *previous)
 {
     Q_UNUSED(previous);
@@ -619,7 +615,6 @@ void FileDialog::on_treeWidget_currentItemChanged(QTreeWidgetItem *current, QTre
     QString fileName = current->text(0);
     ui->deleteButton->setEnabled(fileName != ".." && fileName != "加载中...");
 }
-
 //搜索按钮点击事件
 void FileDialog::on_searchButton_clicked()
 {

@@ -27,6 +27,7 @@ void TcpWorker::Start()
 
 void TcpWorker::SendData()
 {
+    qDebug() << "[sendData] 发送解析前 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
     QByteArray fullPacket;
     QDataStream out(&fullPacket, QIODevice::WriteOnly);
     out.setByteOrder(QDataStream::BigEndian);
@@ -48,6 +49,7 @@ void TcpWorker::SendData()
         m_ctxobj->socket->write(fullPacket);
         m_ctxobj->socket->waitForBytesWritten();
         qDebug() << "[SendData] send one full packet, size =" << fullPacket.size();
+        qDebug() << "[sendData] 发送解析后 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
         return;
     }
 
@@ -65,6 +67,7 @@ void TcpWorker::SendData()
 
         offset += chunkSize;
     }
+    qDebug() << "[sendData] 发送解析后 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 }
 
 void TcpWorker::OnReadyRead()
@@ -73,6 +76,8 @@ void TcpWorker::OnReadyRead()
     qDebug() << "current Thread ID: in OnreadyRead" << currentThreadId;
 
     if (!m_ctxobj->socket) return;
+
+    qDebug() << "[readData] 接收前 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 
     m_ctxobj->receiveBuffer.append(m_ctxobj->socket->readAll());
     qDebug() << "服务器 收到字节数:" << m_ctxobj->receiveBuffer.size();
@@ -97,6 +102,7 @@ void TcpWorker::OnReadyRead()
                 qDebug() << "[OnReadyRead] 多包数据接收完成, payload size =" << m_ctxobj->payload.size()
                          << " identity =" << m_ctxobj->dialogIdentity
                          << " handle ptr =" << m_ctxobj->dialogHandle;
+                qDebug() << "[readData] 接收解析后收齐包 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 
                 emit dataPrased(m_ctxobj);
 
@@ -135,8 +141,10 @@ void TcpWorker::OnReadyRead()
             qDebug() << "[OnReadyRead] 完整数据接收完成, payload size =" << m_ctxobj->payload.size()
                      << " identity =" << m_ctxobj->dialogIdentity
                      << " handle ptr =" << m_ctxobj->dialogHandle;
+            qDebug() << "[readData] 接收解析单包后 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 
             emit dataPrased(m_ctxobj);
+            qDebug() << "emit finished, ctxobj =" << m_ctxobj << "isToken=" << m_ctxobj->isToken;
             continue;
         }
         //多包

@@ -5,6 +5,8 @@
 #include <QString>
 #include <QTcpSocket>
 #include <QHostAddress>
+#include <QDateTime>
+#include <QDebug>
 
 #define PACKET_LENGTH 0x4000
 #define PACKET_HEADER_LENGTH 9

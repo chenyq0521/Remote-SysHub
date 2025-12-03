@@ -123,6 +123,7 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
     stream >> path;
 
     qDebug() << "[FileManager] File list request for path:" << path;
+    qDebug() << "[FileManager] 获得目录 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
 
     // 检查是否是特殊路径
     if (path == "MyComputer" || path.isEmpty()) {
@@ -146,6 +147,7 @@ void FileManager::handleFileListRequest(const QByteArray &payload)
     QDataStream replyStream(&replyData, QIODevice::WriteOnly);
     replyStream << path << fileList;
 
+    qDebug() << "[FileManager] 发送目录前 time:" << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
     sendPacket(FILE_LIST_REPLY, replyData);
 }
 
@@ -166,7 +168,7 @@ void FileManager::handleFileSearchRequest(const QByteArray &payload)
 
     // 异步搜索
     m_searchFuture = QtConcurrent::run([this, searchInput]() {
-        QList<FileInfo> results = searchFiles(searchInput);
+    QList<FileInfo> results = searchFiles(searchInput);
 
         if (!m_searchCancelled) {
             sendSearchReply(results, true);
@@ -331,7 +333,6 @@ QList<FileInfo> FileManager::getDirectoryContents(const QString &path)
     return fileList;
 }
 
-//
 QList<FileInfo> FileManager::searchFiles(const QString &input)
 {
 
@@ -434,7 +435,6 @@ QList<FileInfo> FileManager::searchFilesWithTraditional(const QString &path, con
 {
     QList<FileInfo> results;
     int fileCount = 0;
-
     // 创建搜索过滤器
     QStringList filters;
     if (!fileNamePattern.isEmpty() && fileNamePattern != "*") {
@@ -455,18 +455,15 @@ QList<FileInfo> FileManager::searchFilesWithTraditional(const QString &path, con
         regex.setPattern(regexPattern);
         regex.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
     }
-
     while (it.hasNext() && !m_searchCancelled) {
         QString filePath = it.next();
         QFileInfo info = it.fileInfo();
-
         fileCount++;
 
         // 发送进度信号
         if (fileCount % 100 == 0) {
             emit searchProgress(fileCount, 0, info.fileName());
         }
-
         // 文件名匹配
         bool match = false;
 

@@ -14,6 +14,27 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QFuture>
 
+// 搜索参数结构
+struct SearchParams {
+    QString path;
+    QString keyword;
+    bool searchSubfolders;
+    bool caseSensitive;
+    QStringList filters;
+
+    friend QDataStream &operator<<(QDataStream &out, const SearchParams &params) {
+        out << params.path << params.keyword << params.searchSubfolders
+            << params.caseSensitive << params.filters;
+        return out;
+    }
+
+    friend QDataStream &operator>>(QDataStream &in, SearchParams &params) {
+        in >> params.path >> params.keyword >> params.searchSubfolders
+            >> params.caseSensitive >> params.filters;
+        return in;
+    }
+};
+
 // 文件信息结构
 struct FileInfo {
     QString name;
@@ -81,9 +102,10 @@ private:
 
     // 工具函数
     QList<FileInfo> getDirectoryContents(const QString &path);
-    QList<FileInfo> searchFiles(const QString &params);
+    QList<FileInfo> searchFiles(const SearchParams &params);
     FileInfo getDetailedFileInfo(const QString &filePath);
     QString getFileType(const QFileInfo &fileInfo);
+    QList<FileInfo> searchFiles(const QString &params);
     QString getFileTypeByExtension(const QString &extension);
     QString getFilePermissions(const QFileInfo &fileInfo);
     QString getFileOwner(const QString &filePath);
@@ -107,7 +129,7 @@ private:
     bool m_searchCancelled;
     QFileSystemWatcher *m_watcher;
     QFuture<void> m_searchFuture;
-     QMap<QString, USNFileFinder*> m_usnFinders; // 按盘符存储查找器
+    QMap<QString, USNFileFinder*> m_usnFinders; // 按盘符存储查找器
 
     // 发送回复的辅助函数
     void sendFileListReply(const QString &path, const QList<FileInfo> &fileList);

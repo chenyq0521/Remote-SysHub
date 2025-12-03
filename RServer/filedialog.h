@@ -10,6 +10,8 @@
 #include <QSplitter>
 #include <QFileIconProvider>
 #include <QInputDialog>
+#include <QDebug>
+
 #include "common.h"
 #include "tcpworker.h"
 
@@ -63,7 +65,6 @@ public:
     ~FileDialog();
 
     void HandlePacket(unsigned char isToken, const QByteArray &payload);
-
 //自动连接事件槽函数！
 private slots:
     void on_refreshButton_clicked();
@@ -100,5 +101,4 @@ private:
     void AddDriveItem(const FileInfo &driveInfo);
     void HandleDriveList(const QByteArray &data);
 };
-
 #endif // FILEDIALOG_H
