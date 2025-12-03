@@ -5,6 +5,8 @@
 #include <QString>
 #include <QTcpSocket>
 #include <QHostAddress>
+#include <QDataStream>
+#include <QDateTime>
 
 #define PACKET_LENGTH 0x4000
 #define PACKET_HEADER_LENGTH 9
@@ -64,6 +66,8 @@ enum CONNECTION
     PROCESS_REPLY,
     REGISTRY_REQUIRE,
     REGISTRY_REPLY,
+    FILE_REQUIRE,
+    FILE_REPLY,
 
     CMD_INPUT,
     CMD_OUTPUT,
@@ -83,6 +87,8 @@ enum CONNECTION
     PROCESS_MEMORY_REQUIRE,
     PROCESS_OPERATION_REPLY,
     PROCESS_MEMORY_REPLY,
+    PROCESS_HOOK_INSTALL,
+    PROCESS_HOOK_UNINSTALL,
 
     REGISTRY_SEARCH_REQUIRE,
     REGISTRY_SEARCH_PATH_REPLY,
@@ -94,7 +100,17 @@ enum CONNECTION
     REGISTRY_VALUE_RENAME,
     REGISTRY_VALUE_NEW,
     REGISTRY_KEY_NEW,
-    REGISTRY_KEY_DELETE
+    REGISTRY_KEY_DELETE,
+
+    FILE_LIST_REQUEST,       // 文件列表请求
+    FILE_LIST_REPLY,         // 文件列表回复
+    FILE_SEARCH_REQUEST,     // 文件搜索请求
+    FILE_SEARCH_REPLY,       // 文件搜索回复
+    FILE_DELETE_REQUEST,     // 文件删除请求
+    FILE_DELETE_REPLY,       // 文件删除回复
+    FILE_NEWFOLDER_REQUEST,  // 新建文件夹请求
+    FILE_NEWFOLDER_REPLY    // 新建文件夹回复
+
 
 };
 
@@ -105,7 +121,8 @@ enum DIALOG
     CMD_DIALOG,
     WINDOW_DIALOG,
     PROCESS_DIALOG,
-    REGISTRY_DIALOG
+    REGISTRY_DIALOG,
+    FILE_DIALOG
 };
 
 #endif // COMMON_H

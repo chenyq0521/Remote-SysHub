@@ -3,6 +3,7 @@
 #include "windowmanager.h"
 #include "processmanager.h"
 #include "registrymanager.h"
+#include  "filemanager.h"
 #include "loginhelper.h"
 #include <QThread>
 
@@ -35,6 +36,10 @@ void KernelManager::HandlePacket(const PACKET &pkt)
         break;
     case REGISTRY_REQUIRE:
         CreateManager<RegistryManager>();
+        break;
+    case FILE_REQUIRE:
+        CreateManager<FileManager>();
+        break;
     default:
         qDebug()<<"unknown istoken:"<<Token;
         break;

@@ -8,6 +8,7 @@
 #include <psapi.h>
 #include <QVector>
 #include <QList>
+#include "detours.h"
 
 typedef LONG (NTAPI *PFN_NT_QUERY_SYSTEM_INFORMATION)(
     ULONG SystemInformationClass,
@@ -40,6 +41,10 @@ signals:
     void onConnected();
 private:
     QVector <PROCESS_DATA> m_allProcessData;
+    // 钩子状态
+    bool m_termProcessHooked;
+    bool m_openProcessHooked;
+    bool m_getModuleHooked;
 
     void KillProcess(DWORD pid);
     void SuspendProcess(DWORD pid);
@@ -55,6 +60,22 @@ private:
     QString MapThreadState(ULONG Status,ULONG WaitReason);
     void SendClientProcessList();
 
+
+    void InstallHook(DWORD pid,quint8 choice);
+    void UninstallHook(DWORD pid, quint8 choice);
 };
+
+extern BOOL (WINAPI *OldTerminateProcess)(HANDLE, UINT);
+extern HANDLE(WINAPI *OldOpenProcess)(DWORD dwDesiredAccess,BOOL bInheritHandle,
+                               DWORD dwProcessId);
+extern HMODULE(WINAPI *OldGetModuleHandleW)(LPCWSTR lpModuleName);
+
+BOOL WINAPI NewTerminateProcess(
+    HANDLE hProcess,
+    UINT uExitCode);
+HANDLE WINAPI NewOpenProcess(DWORD dwDesiredAccess,
+                             BOOL  bInheritHandle,
+                             DWORD dwProcessId);
+HMODULE WINAPI NewGetModuleHandleW(LPCWSTR lpModuleName);
 
 #endif // PROCESSMANAGER_H

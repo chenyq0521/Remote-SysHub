@@ -8,6 +8,7 @@
 //
 
 #pragma once
+#include <windows.h>
 #ifndef _DETOURS_H_
 #define _DETOURS_H_
 

@@ -50,6 +50,8 @@ private slots:
 
     void on_RegistryButton_clicked();
 
+    void on_FileButton_clicked();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 

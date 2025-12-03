@@ -12,8 +12,10 @@ LIBS += -lws2_32
 
 SOURCES += \
     cmddialog.cpp \
+    filedialog.cpp \
     main.cpp \
     processdialog.cpp \
+    processinject.cpp \
     processmemorydialog.cpp \
     registrydatadialog.cpp \
     registrydialog.cpp \
@@ -25,7 +27,9 @@ SOURCES += \
 HEADERS += \
     cmddialog.h \
     common.h \
+    filedialog.h \
     processdialog.h \
+    processinject.h \
     processmemorydialog.h \
     registrydatadialog.h \
     registrydialog.h \
@@ -36,7 +40,9 @@ HEADERS += \
 
 FORMS += \
     cmddialog.ui \
+    filedialog.ui \
     processdialog.ui \
+    processinject.ui \
     processmemorydialog.ui \
     registrydatadialog.ui \
     registrydialog.ui \

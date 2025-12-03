@@ -73,18 +73,19 @@ QString ProcessMemoryDialog::MapType(DWORD t)
     default: return "Unknown";
     }
 }
+
 QString ProcessMemoryDialog::ProtectToString(DWORD p)
 {
-    switch(p)
+    switch (p)
     {
-    case PAGE_READONLY: return "-R--";
-    case PAGE_READWRITE: return "-RW-";
-    case PAGE_WRITECOPY: return "-RWC";
-    case PAGE_EXECUTE: return "E---";
-    case PAGE_EXECUTE_READ: return "ER--";
-    case PAGE_EXECUTE_READWRITE: return "ERW-";
-    case PAGE_EXECUTE_WRITECOPY: return "ERWC";
-    case PAGE_NOACCESS: return "----";
-    default: return "----";
+    case PAGE_NOACCESS:             return "不可访问";               // ----
+    case PAGE_READONLY:             return "仅读";                   // -R--
+    case PAGE_READWRITE:            return "读写";                   // -RW-
+    case PAGE_WRITECOPY:            return "读写(写时复制)";         // -RWC
+    case PAGE_EXECUTE:              return "仅执行";                 // E---
+    case PAGE_EXECUTE_READ:         return "执行+读";                // ER--
+    case PAGE_EXECUTE_READWRITE:    return "执行+读写";              // ERW-
+    case PAGE_EXECUTE_WRITECOPY:    return "执行+读写(写时复制)";    // ERWC
+    default:                        return "未知";
     }
 }

@@ -36,12 +36,12 @@
      </rect>
     </property>
    </widget>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>20</x>
       <y>10</y>
-      <width>461</width>
+      <width>641</width>
       <height>41</height>
      </rect>
     </property>
@@ -78,6 +78,13 @@
       <widget class="QPushButton" name="RegistryButton">
        <property name="text">
         <string>注册表</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="FileButton">
+       <property name="text">
+        <string>文件</string>
        </property>
       </widget>
      </item>
